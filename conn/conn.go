@@ -22,8 +22,9 @@ type Conn struct {
 	bufWriter *bufio.Writer // 写数据io
 	csidMap   map[uint32]*ChunkStream
 
-	writeMaxChunkSize int
-	readMaxChunkSize  int // chunk size
+	writeMaxChunkSize   int
+	readMaxChunkSize    int    // chunk size
+	remoteWindowAckSize uint32 // ack size
 
 	tmpReadData  []byte // 用于临时读
 	tmpWriteData []byte // 用于临时写
@@ -34,6 +35,8 @@ type Conn struct {
 	messageDone bool // 是否处理完
 
 	ConnInfo *command.ConnectInfo // 连接信息
+
+	isPublish bool // 是否是推流
 }
 
 func (c *Conn) MessageDone() bool {
@@ -54,6 +57,7 @@ func NewConn(netConn net.Conn) *Conn {
 	conn.tmpReadData = make([]byte, 4096)
 
 	conn.ConnInfo = &command.ConnectInfo{}
+	conn.remoteWindowAckSize = remoteWindowAckSize
 	return conn
 }
 
@@ -223,7 +227,7 @@ func (c *Conn) ReadChunk() (*ChunkStream, error) {
 			}
 			cs.initData()
 		} else {
-			log.Errorf("ReadChunk. cs.remain is not 0,use:%v", cs.useExtendTimeStamp)
+			log.Warnf("ReadChunk. cs.remain is not 0,useExtendTimeStamp:%v,remain:%d", cs.useExtendTimeStamp, cs.remain)
 		}
 	default:
 		return nil, fmt.Errorf("invalid format=%d", format)
@@ -255,9 +259,10 @@ func (c *Conn) Ack(cs *ChunkStream) {
 	if c.received >= 0xf0000000 {
 		c.received = 0
 	}
-	if c.ackReceived >= remoteWindowAckSize {
-		cs := c.NewAck(c.ackReceived)
-		c.writeChunk(&cs, c.writeMaxChunkSize)
+	log.Debugf("Ack.ready ack,ackReceived:%d", c.ackReceived)
+	if c.ackReceived >= c.remoteWindowAckSize {
+		ackChunk := c.NewAck(c.ackReceived)
+		c.writeChunk(&ackChunk, c.writeMaxChunkSize)
 		c.ackReceived = 0
 	}
 }

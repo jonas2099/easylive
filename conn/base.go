@@ -1,9 +1,10 @@
 package conn
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/haroldleong/easylive/format/flv/amf"
+	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"io"
 )
 
@@ -110,16 +111,13 @@ func (c *Conn) writeCommandMsg(csid, msgsid uint32, args ...interface{}) (err er
 	return c.writeAMF0Msg(msgTypeIDCommandMsgAMF0, csid, msgsid, args...)
 }
 
-func (c *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...interface{}) (err error) {
-	size := 0
-	for _, arg := range args {
-		size += amf.LenAMF0Val(arg)
-	}
-	if len(c.tmpWriteData) < chunkHeaderLength+size {
-		c.tmpWriteData = make([]byte, chunkHeaderLength+size)
-	}
-	for _, arg := range args {
-		amf.FillAMF0Val(c.tmpWriteData, arg)
+func (c *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...interface{}) error {
+	encoder := &newamf.Encoder{}
+	bytesw := bytes.NewBuffer(nil)
+	for _, v := range args {
+		if _, err := encoder.Encode(bytesw, v, newamf.AMF0); err != nil {
+			return err
+		}
 	}
 	cs := ChunkStream{
 		Format:    0,
@@ -127,9 +125,11 @@ func (c *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...interf
 		Timestamp: 0,
 		TypeID:    uint32(msgtypeid),
 		StreamID:  msgsid,
-		Length:    uint32(len(c.tmpWriteData)),
-		Data:      c.tmpWriteData,
+		Length:    uint32(len(bytesw.Bytes())),
+		Data:      bytesw.Bytes(),
 	}
-	c.Write(&cs)
-	return
+	if err := c.Write(&cs); err != nil {
+		return err
+	}
+	return c.bufWriter.Flush()
 }

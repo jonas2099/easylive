@@ -22,6 +22,8 @@ func (cs *ChunkStream) Full() bool {
 	return cs.finish
 }
 func (cs *ChunkStream) initData() {
+	cs.finish = false
+	cs.index = 0
 	cs.remain = cs.Length
 	cs.Data = make([]byte, cs.Length)
 }

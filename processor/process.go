@@ -2,6 +2,7 @@ package processor
 
 import (
 	"github.com/haroldleong/easylive/conn"
+	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,18 +24,20 @@ func (p *ConnProcessor) HandleConn() {
 		return
 	}
 	log.Debugf("HandleConn.handshake success")
+	// 连接
 	for {
 		cs := p.getChunk()
 		log.Infof("HandleConn.ready process chunk.len:%d", cs.Length)
 		if err := p.conn.HandleChunk(cs); err != nil {
-			log.Error("HandleConn HandleChunk err:%v ", err)
+			log.Errorf("HandleConn HandleChunk err:%v", err)
 			return
 		}
 		if p.conn.MessageDone() {
 			break
 		}
 	}
-	log.Infof("HandleConn.ready process stream")
+	// 开始读数据
+	log.Infof("HandleConn.ready process stream.connInfo:%s", util.JSON(p.conn.ConnInfo))
 }
 
 func (p *ConnProcessor) getChunk() *conn.ChunkStream {
@@ -44,7 +47,7 @@ func (p *ConnProcessor) getChunk() *conn.ChunkStream {
 		var err error
 		chunk, err = p.conn.ReadChunk()
 		if err != nil {
-			log.Errorf("HandleConn.ReadChunk fail.err:%v", err)
+			log.Errorf("getChunk.ReadChunk fail.err:%v", err)
 			return nil
 		}
 		if chunk.Full() {
