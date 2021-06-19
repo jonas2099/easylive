@@ -16,6 +16,13 @@ func (c *Conn) readData(n int32) ([]byte, error) {
 	return mh, nil
 }
 
+func (c *Conn) WriteAndFlush(cs *ChunkStream) error {
+	if err := c.Write(cs); err != nil {
+		return err
+	}
+	return c.bufWriter.Flush()
+}
+
 func (c *Conn) Write(cs *ChunkStream) error {
 	if cs.TypeID == pcmSetChunkSize {
 		c.writeMaxChunkSize = int(binary.BigEndian.Uint32(cs.Data))
@@ -24,11 +31,11 @@ func (c *Conn) Write(cs *ChunkStream) error {
 }
 
 func (c *Conn) writeChunk(cs *ChunkStream, chunkSize int) error {
-	if cs.TypeID == TAG_AUDIO {
+	if cs.TypeID == MsgTypeIDAudioMsg {
 		cs.CSID = 4
-	} else if cs.TypeID == TAG_VIDEO ||
-		cs.TypeID == TAG_SCRIPTDATAAMF0 ||
-		cs.TypeID == TAG_SCRIPTDATAAMF3 {
+	} else if cs.TypeID == MsgTypeIDVideoMsg ||
+		cs.TypeID == MsgTypeIDDataMsgAMF0 ||
+		cs.TypeID == MsgTypeIDDataMsgAMF3 {
 		cs.CSID = 6
 	}
 
@@ -108,7 +115,23 @@ END:
 }
 
 func (c *Conn) writeCommandMsg(csid, msgsid uint32, args ...interface{}) (err error) {
-	return c.writeAMF0Msg(msgTypeIDCommandMsgAMF0, csid, msgsid, args...)
+	return c.writeAMF0Msg(MsgTypeIDCommandMsgAMF0, csid, msgsid, args...)
+}
+
+func (c *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
+	var ret ChunkStream
+	buflen += 2
+	ret = ChunkStream{
+		Format:   0,
+		CSID:     2,
+		TypeID:   4,
+		StreamID: 1,
+		Length:   buflen,
+		Data:     make([]byte, buflen),
+	}
+	ret.Data[0] = byte(eventType >> 8 & 0xff)
+	ret.Data[1] = byte(eventType & 0xff)
+	return ret
 }
 
 func (c *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...interface{}) error {

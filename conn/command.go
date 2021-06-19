@@ -2,34 +2,44 @@ package conn
 
 import (
 	"fmt"
-	"github.com/Monibuca/engine/v2/util/bits/pio"
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
+	"github.com/gwuhaolin/livego/utils/pio"
 	"github.com/haroldleong/easylive/command"
 	"github.com/haroldleong/easylive/format/flv/amf"
 	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	msgTypeIDSetChunkSize     = 1
-	msgTypeIDAck              = 3
-	msgTypeIDUserControl      = 4
-	msgTypeIDWindowAckSize    = 5
-	msgTypeIDSetPeerBandwidth = 6
+/*
 
-	msgTypeIDAudioMsg       = 8
-	msgTypeIDVideoMsg       = 9
-	msgTypeIDDataMsgAMF3    = 15
-	msgTypeIDCommandMsgAMF3 = 17
-	msgTypeIDDataMsgAMF0    = 18
-	msgTypeIDCommandMsgAMF0 = 20
+Command Message(命令消息，Message Type ID＝17或20)：表示在客户端盒服务器间传递的在对端执行某些操作的命令消息，如connect表示连接对端，对端如果同意连接的话会记录发送端信息并返回连接成功消息，publish表示开始向对方推流，接受端接到命令后准备好接受对端发送的流信息，后面会对比较常见的Command Message具体介绍。当信息使用AMF0编码时，Message Type ID＝20，AMF3编码时Message Type ID＝17.
+Data Message（数据消息，Message Type ID＝15或18）：传递一些元数据（MetaData，比如视频名，分辨率等等）或者用户自定义的一些消息。当信息使用AMF0编码时，Message Type ID＝18，AMF3编码时Message Type ID＝15.
+Shared Object Message(共享消息，Message Type ID＝16或19)：表示一个Flash类型的对象，由键值对的集合组成，用于多客户端，多实例时使用。当信息使用AMF0编码时，Message Type ID＝19，AMF3编码时Message Type ID＝16.
+Audio Message（音频信息，Message Type ID＝8）：音频数据。
+Video Message（视频信息，Message Type ID＝9）：视频数据。
+Aggregate Message (聚集信息，Message Type ID＝22)：多个RTMP子消息的集合
+User Control Message Events(用户控制消息，Message Type ID=4):告知对方执行该信息中包含的用户控制事件，比如Stream Begin事件告知对方流信息开始传输。和前面提到的协议控制信息（Protocol Control Message）不同，这是在RTMP协议层的，而不是在RTMP chunk流协议层的，这个很容易弄混。该信息在chunk流中发送时，Message Stream ID=0,Chunk Stream Id=2,Message Type Id=4。
+*/
+const (
+	MsgTypeIDSetChunkSize     = 1
+	MsgTypeIDAck              = 3
+	MsgTypeIDUserControl      = 4
+	MsgTypeIDWindowAckSize    = 5
+	MsgTypeIDSetPeerBandwidth = 6
+
+	MsgTypeIDAudioMsg       = 8
+	MsgTypeIDVideoMsg       = 9
+	MsgTypeIDDataMsgAMF3    = 15 //AMF3编码，音视频metaData，传递一些元数据比如视频名，分辨率等
+	MsgTypeIDCommandMsgAMF3 = 17 //AMF3编码，RTMP命令消息
+	MsgTypeIDDataMsgAMF0    = 18 //AMF0编码，音视频metaData风格
+	MsgTypeIDCommandMsgAMF0 = 20 //AMF0编码，RTMP命令消息
 
 	cmdConnect       = "connect"
 	cmdFcpublish     = "FCPublish"
 	cmdReleaseStream = "releaseStream"
 	cmdCreateStream  = "createStream"
 	cmdPublish       = "publish"
-	cmdFCUnpublish   = "FCUnpublish"
+	cmdFCUnPublish   = "FCUnpublish"
 	cmdDeleteStream  = "deleteStream"
 	cmdPlay          = "play"
 )
@@ -37,16 +47,16 @@ const (
 func (c *Conn) HandleChunk(cs *ChunkStream) (err error) {
 	var cmd *command.Command
 	switch cs.TypeID {
-	case msgTypeIDSetChunkSize:
+	case MsgTypeIDSetChunkSize:
 		c.readMaxChunkSize = int(pio.U32BE(cs.Data))
-		log.Debugf("HandleChunk.type msgTypeIDSetChunkSize,size:%d", c.readMaxChunkSize)
+		log.Debugf("HandleChunk.type MsgTypeIDSetChunkSize,size:%d", c.readMaxChunkSize)
 		return nil
-	case msgTypeIDWindowAckSize:
+	case MsgTypeIDWindowAckSize:
 		c.remoteWindowAckSize = pio.U32BE(cs.Data)
-		log.Debugf("HandleChunk.type msgTypeIDWindowAckSize,size:%d", c.remoteWindowAckSize)
+		log.Debugf("HandleChunk.type MsgTypeIDWindowAckSize,size:%d", c.remoteWindowAckSize)
 		return nil
-	case msgTypeIDCommandMsgAMF3:
-		log.Debugf("HandleChunk.type msgTypeIDCommandMsgAMF3")
+	case MsgTypeIDCommandMsgAMF3:
+		log.Debugf("HandleChunk.type MsgTypeIDCommandMsgAMF3")
 		if len(cs.Data) < 1 {
 			err = fmt.Errorf("rtmp: short packet of CommandMsgAMF3")
 			return
@@ -55,11 +65,15 @@ func (c *Conn) HandleChunk(cs *ChunkStream) (err error) {
 		if cmd, err = c.handleCommandMsgAMF0(cs.Data[1:]); err != nil {
 			return
 		}
-	case msgTypeIDCommandMsgAMF0:
-		log.Debugf("HandleChunk.type msgTypeIDCommandMsgAMF0")
+	case MsgTypeIDCommandMsgAMF0:
+		log.Debugf("HandleChunk.type MsgTypeIDCommandMsgAMF0")
 		if cmd, err = c.handleCommandMsgAMF0(cs.Data); err != nil {
 			return err
 		}
+	case MsgTypeIDUserControl:
+		eventType := pio.U16BE(cs.Data)
+		log.Debugf("HandleChunk.type MsgTypeIDUserControl.eventType:%d", eventType)
+		return nil
 	default:
 		log.Warnf("HandleChunk.ignore type.id:%d", cs.TypeID)
 	}
@@ -101,15 +115,31 @@ func (c *Conn) processCMD(cs *ChunkStream, cmd *command.Command) error {
 			return err
 		}
 		c.messageDone = true
-		c.isPublish = true
+		c.ConnType = ConnectionTypePublish
 	case cmdPlay:
-		log.Debugf("processCMD.cmdPlay")
+		if len(cmd.CommandParams) < 1 {
+			return fmt.Errorf("rtmp: play params invalid")
+		}
+		playPath, _ := cmd.CommandParams[0].(string)
+		log.Debugf("processCMD.cmdPlay.playPath:%s", playPath)
+		if err := c.markStreamBegin(cs, cmd); err != nil {
+			return err
+		}
+		if err := c.playResp(cs, cmd); err != nil {
+			return err
+		}
+		c.messageDone = true
+		c.ConnType = ConnectionTypePull
 	case cmdFcpublish:
 		log.Debugf("processCMD.cmdFcpublish")
 	case cmdReleaseStream:
+		/*
+			音频、视频、元数据均通过createStream创建的数据通道进行交互，一般会在createStream之前先来一次releaseStream
+			因为我们每次开启新的流程，并不能确保之前的流程是否正常走完，是否出现了异常情况，异常的情况是否已经处理等等
+		*/
 		log.Debugf("processCMD.cmdReleaseStream")
-	case cmdFCUnpublish:
-		log.Debugf("processCMD.cmdFCUnpublish")
+	case cmdFCUnPublish:
+		log.Debugf("processCMD.cmdFCUnPublish")
 	case cmdDeleteStream:
 		log.Debugf("processCMD.cmdDeleteStream")
 	default:
@@ -160,6 +190,25 @@ func (c *Conn) publishResp(cs *ChunkStream, cmd *command.Command) error {
 	event["code"] = "NetStream.Publish.Start"
 	event["description"] = "Start publising."
 	return c.writeCommandMsg(cs.CSID, cs.StreamID, "onStatus", 0, nil, event)
+}
+
+func (c *Conn) markStreamBegin(cs *ChunkStream, cmd *command.Command) error {
+	ret := c.userControlMsg(uint32(UserControlStreamBegin), 4)
+	for i := 0; i < 4; i++ {
+		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
+	}
+	return c.Write(&ret)
+}
+
+func (c *Conn) playResp(cs *ChunkStream, cmd *command.Command) error {
+	event := make(newamf.Object)
+	event["level"] = "status"
+	event["code"] = "NetStream.Play.Start"
+	event["description"] = "Started playing stream."
+	if err := c.writeCommandMsg(cs.CSID, cs.StreamID, "onStatus", 0, nil, event); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Conn) createStreamResp(cs *ChunkStream, cmd *command.Command) error {

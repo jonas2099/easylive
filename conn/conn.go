@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/haroldleong/easylive/command"
-	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -14,6 +13,13 @@ import (
 
 const (
 	remoteWindowAckSize = 5000000 // 客户端可接受的最大数据包的值
+)
+
+type ConnectionType int32
+
+const (
+	ConnectionTypePublish ConnectionType = iota
+	ConnectionTypePull
 )
 
 type Conn struct {
@@ -36,7 +42,7 @@ type Conn struct {
 
 	ConnInfo *command.ConnectInfo // 连接信息
 
-	isPublish bool // 是否是推流
+	ConnType ConnectionType // 是否是推流or拉流
 }
 
 func (c *Conn) MessageDone() bool {
@@ -227,12 +233,12 @@ func (c *Conn) ReadChunk() (*ChunkStream, error) {
 			}
 			cs.initData()
 		} else {
-			log.Warnf("ReadChunk. cs.remain is not 0,useExtendTimeStamp:%v,remain:%d", cs.useExtendTimeStamp, cs.remain)
+			// log.Infof("ReadChunk. cs.remain is not 0,useExtendTimeStamp:%v,remain:%d", cs.useExtendTimeStamp, cs.remain)
 		}
 	default:
 		return nil, fmt.Errorf("invalid format=%d", format)
 	}
-	log.Debugf("ReadChunk.cs:%s", util.JSON(cs))
+	// log.Debugf("ReadChunk.cs:%s", util.JSON(cs))
 	size := int(cs.remain)
 	if size > c.readMaxChunkSize {
 		size = c.readMaxChunkSize
@@ -259,8 +265,8 @@ func (c *Conn) Ack(cs *ChunkStream) {
 	if c.received >= 0xf0000000 {
 		c.received = 0
 	}
-	log.Debugf("Ack.ready ack,ackReceived:%d", c.ackReceived)
 	if c.ackReceived >= c.remoteWindowAckSize {
+		log.Infof("Ack.true ack,ackReceived:%d", c.ackReceived)
 		ackChunk := c.NewAck(c.ackReceived)
 		c.writeChunk(&ackChunk, c.writeMaxChunkSize)
 		c.ackReceived = 0
