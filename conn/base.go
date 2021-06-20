@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
+	"github.com/haroldleong/easylive/consts"
 	"io"
 )
 
@@ -31,11 +32,11 @@ func (c *Conn) Write(cs *ChunkStream) error {
 }
 
 func (c *Conn) writeChunk(cs *ChunkStream, chunkSize int) error {
-	if cs.TypeID == MsgTypeIDAudioMsg {
+	if cs.TypeID == consts.MsgTypeIDAudioMsg {
 		cs.CSID = 4
-	} else if cs.TypeID == MsgTypeIDVideoMsg ||
-		cs.TypeID == MsgTypeIDDataMsgAMF0 ||
-		cs.TypeID == MsgTypeIDDataMsgAMF3 {
+	} else if cs.TypeID == consts.MsgTypeIDVideoMsg ||
+		cs.TypeID == consts.MsgTypeIDDataMsgAMF0 ||
+		cs.TypeID == consts.MsgTypeIDDataMsgAMF3 {
 		cs.CSID = 6
 	}
 
@@ -90,14 +91,14 @@ func (c *Conn) writeHeader(cs *ChunkStream) error {
 	if cs.Format == 3 {
 		goto END
 	}
-	if cs.Timestamp > FlvTimestampMax {
-		ts = FlvTimestampMax
+	if cs.Timestamp > consts.FlvTimestampMax {
+		ts = consts.FlvTimestampMax
 	}
 	c.WriteUintBE(ts, 3)
 	if cs.Format == 2 {
 		goto END
 	}
-	if cs.Length > FlvTimestampMax {
+	if cs.Length > consts.FlvTimestampMax {
 		return fmt.Errorf("length=%d", cs.Length)
 	}
 	c.WriteUintBE(cs.Length, 3)
@@ -108,14 +109,14 @@ func (c *Conn) writeHeader(cs *ChunkStream) error {
 	c.WriteUintLE(cs.StreamID, 4)
 END:
 	//Extended Timestamp
-	if ts >= FlvTimestampMax {
+	if ts >= consts.FlvTimestampMax {
 		c.WriteUintBE(cs.Timestamp, 4)
 	}
 	return nil
 }
 
 func (c *Conn) writeCommandMsg(csid, msgsid uint32, args ...interface{}) (err error) {
-	return c.writeAMF0Msg(MsgTypeIDCommandMsgAMF0, csid, msgsid, args...)
+	return c.writeAMF0Msg(consts.MsgTypeIDCommandMsgAMF0, csid, msgsid, args...)
 }
 
 func (c *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {

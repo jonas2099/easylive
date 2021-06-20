@@ -22,13 +22,12 @@ func (rs *RtmpServer) StartServe() (err error) {
 	}
 	log.Infof("rtmp server start.listening on:%s", addr)
 	for {
-		var netconn net.Conn
-		if netconn, err = rtmpListener.Accept(); err != nil {
+		var netConn net.Conn
+		if netConn, err = rtmpListener.Accept(); err != nil {
 			return err
 		}
-		p := processor.New(conn.NewConn(netconn))
 		go func() {
-			p.HandleConn()
+			processor.New(conn.NewConn(netConn)).HandleConn()
 		}()
 	}
 }
