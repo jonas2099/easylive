@@ -119,6 +119,29 @@ func (c *Conn) writeCommandMsg(csid, msgsid uint32, args ...interface{}) (err er
 	return c.writeAMF0Msg(consts.MsgTypeIDCommandMsgAMF0, csid, msgsid, args...)
 }
 
+func (c *Conn) writeAMF0Msg(typeID uint32, csid, streamID uint32, args ...interface{}) error {
+	encoder := &newamf.Encoder{}
+	byteWriter := bytes.NewBuffer(nil)
+	for _, v := range args {
+		if _, err := encoder.Encode(byteWriter, v, newamf.AMF0); err != nil {
+			return err
+		}
+	}
+	cs := ChunkStream{
+		Format:    0,
+		CSID:      csid,
+		Timestamp: 0,
+		TypeID:    typeID,
+		StreamID:  streamID,
+		Length:    uint32(len(byteWriter.Bytes())),
+		Data:      byteWriter.Bytes(),
+	}
+	if err := c.Write(&cs); err != nil {
+		return err
+	}
+	return c.bufWriter.Flush()
+}
+
 func (c *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
 	var ret ChunkStream
 	buflen += 2
@@ -133,27 +156,4 @@ func (c *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
 	ret.Data[0] = byte(eventType >> 8 & 0xff)
 	ret.Data[1] = byte(eventType & 0xff)
 	return ret
-}
-
-func (c *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...interface{}) error {
-	encoder := &newamf.Encoder{}
-	bytesw := bytes.NewBuffer(nil)
-	for _, v := range args {
-		if _, err := encoder.Encode(bytesw, v, newamf.AMF0); err != nil {
-			return err
-		}
-	}
-	cs := ChunkStream{
-		Format:    0,
-		CSID:      csid,
-		Timestamp: 0,
-		TypeID:    uint32(msgtypeid),
-		StreamID:  msgsid,
-		Length:    uint32(len(bytesw.Bytes())),
-		Data:      bytesw.Bytes(),
-	}
-	if err := c.Write(&cs); err != nil {
-		return err
-	}
-	return c.bufWriter.Flush()
 }

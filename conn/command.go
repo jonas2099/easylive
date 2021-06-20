@@ -89,9 +89,6 @@ func (c *Conn) processCMD(cs *ChunkStream, cmd *command.Command) error {
 		}
 		playPath, _ := cmd.CommandParams[0].(string)
 		log.Debugf("processCMD.cmdPlay.playPath:%s", playPath)
-		if err := c.markStreamBegin(); err != nil {
-			return err
-		}
 		if err := c.playResp(cs, cmd); err != nil {
 			return err
 		}
@@ -176,8 +173,11 @@ func (c *Conn) markStreamBegin() error {
 }
 
 func (c *Conn) playResp(cs *ChunkStream, cmd *command.Command) error {
-	event := make(newamf.Object)
+	if err := c.markStreamBegin(); err != nil {
+		return err
+	}
 
+	event := make(newamf.Object)
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.Reset"
 	event["description"] = "Playing and resetting stream."
@@ -205,7 +205,6 @@ func (c *Conn) playResp(cs *ChunkStream, cmd *command.Command) error {
 	if err := c.writeCommandMsg(cs.CSID, cs.StreamID, "onStatus", 0, nil, event); err != nil {
 		return err
 	}
-
 	c.bufWriter.Flush()
 	return nil
 }
