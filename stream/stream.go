@@ -4,7 +4,7 @@ import (
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/haroldleong/easylive/conn"
 	"github.com/haroldleong/easylive/consts"
-	"github.com/haroldleong/easylive/model"
+	"github.com/haroldleong/easylive/entity"
 	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 	"sync"
@@ -13,14 +13,14 @@ import (
 type Stream struct {
 	conn        *conn.Conn
 	mutex       sync.Mutex
-	packetQueue chan *model.Packet
+	packetQueue chan *entity.Packet
 	init        bool
 }
 
 func New(connection *conn.Conn) *Stream {
 	return &Stream{
 		conn:        connection,
-		packetQueue: make(chan *model.Packet, 2048),
+		packetQueue: make(chan *entity.Packet, 2048),
 	}
 }
 
@@ -87,7 +87,6 @@ func (s *Stream) sendStreamChunk(cs *conn.ChunkStream) error {
 		}
 		cs.Length = uint32(len(cs.Data))
 	}
-	log.Infof("sendStreamChunk.%v", util.JSON(cs))
 	return s.conn.WriteAndFlush(cs)
 }
 

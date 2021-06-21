@@ -2,17 +2,38 @@ package conn
 
 import (
 	"fmt"
+
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/gwuhaolin/livego/utils/pio"
-	"github.com/haroldleong/easylive/command"
 	"github.com/haroldleong/easylive/consts"
 	"github.com/haroldleong/easylive/format/flv/amf"
 	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 )
 
+type Command struct {
+	GotCommand     bool
+	CommandName    string
+	CommandTransId float64
+	CommandObj     amf.AMFMap
+	CommandParams  []interface{}
+}
+
+type ConnectInfo struct {
+	App            string `amf:"app" json:"app"`
+	Flashver       string `amf:"flashVer" json:"flashVer"`
+	SwfUrl         string `amf:"swfUrl" json:"swfUrl"`
+	TcUrl          string `amf:"tcUrl" json:"tcUrl"`
+	Fpad           bool   `amf:"fpad" json:"fpad"`
+	AudioCodecs    int    `amf:"audioCodecs" json:"audioCodecs"`
+	VideoCodecs    int    `amf:"videoCodecs" json:"videoCodecs"`
+	VideoFunction  int    `amf:"videoFunction" json:"videoFunction"`
+	PageUrl        string `amf:"pageUrl" json:"pageUrl"`
+	ObjectEncoding int    `amf:"objectEncoding" json:"objectEncoding"`
+}
+
 func (c *Conn) HandleChunk(cs *ChunkStream) (err error) {
-	var cmd *command.Command
+	var cmd *Command
 	switch cs.TypeID {
 	case consts.MsgTypeIDSetChunkSize:
 		c.readMaxChunkSize = int(pio.U32BE(cs.Data))
@@ -51,7 +72,7 @@ func (c *Conn) HandleChunk(cs *ChunkStream) (err error) {
 	return c.processCMD(cs, cmd)
 }
 
-func (c *Conn) processCMD(cs *ChunkStream, cmd *command.Command) error {
+func (c *Conn) processCMD(cs *ChunkStream, cmd *Command) error {
 	switch cmd.CommandName {
 	case consts.CmdConnect:
 		if err := c.connect(cmd); err != nil {
@@ -78,7 +99,7 @@ func (c *Conn) processCMD(cs *ChunkStream, cmd *command.Command) error {
 		// append也会将推流数据保存在服务器端，如果文件不存在的话就会建立一个新文件写入，如果对应该流的文件已经存在的话保存原来的数据，在文件末尾接着写入
 		log.Debugf("processCMD.CommandParams:%v", util.JSON(cmd.CommandParams))
 		// rtmp适合于flv container.如果是mp4会出错
-		if err := c.publishResp(cs, cmd); err != nil {
+		if err := c.publishResp(cs); err != nil {
 			return err
 		}
 		c.messageDone = true
@@ -89,7 +110,7 @@ func (c *Conn) processCMD(cs *ChunkStream, cmd *command.Command) error {
 		}
 		playPath, _ := cmd.CommandParams[0].(string)
 		log.Debugf("processCMD.cmdPlay.playPath:%s", playPath)
-		if err := c.playResp(cs, cmd); err != nil {
+		if err := c.playResp(cs); err != nil {
 			return err
 		}
 		c.messageDone = true
@@ -114,7 +135,7 @@ func (c *Conn) processCMD(cs *ChunkStream, cmd *command.Command) error {
 	return nil
 }
 
-func (c *Conn) connect(cmd *command.Command) error {
+func (c *Conn) connect(cmd *Command) error {
 	if app, ok := cmd.CommandObj["app"]; ok {
 		c.ConnInfo.App = app.(string)
 	}
@@ -130,7 +151,7 @@ func (c *Conn) connect(cmd *command.Command) error {
 	return nil
 }
 
-func (c *Conn) connectResp(cur *ChunkStream, cmd *command.Command) error {
+func (c *Conn) connectResp(cur *ChunkStream, cmd *Command) error {
 	cs := c.NewWindowAckSize(2500000)
 	c.Write(&cs)
 	cs = c.NewSetPeerBandwidth(2500000)
@@ -150,7 +171,7 @@ func (c *Conn) connectResp(cur *ChunkStream, cmd *command.Command) error {
 	return c.writeCommandMsg(cur.CSID, cur.StreamID, "_result", cmd.CommandTransId, resp, event)
 }
 
-func (c *Conn) publishResp(cs *ChunkStream, cmd *command.Command) error {
+func (c *Conn) publishResp(cs *ChunkStream) error {
 	event := make(newamf.Object)
 	event["level"] = "status"
 	event["code"] = "NetStream.Publish.Start"
@@ -172,12 +193,12 @@ func (c *Conn) markStreamBegin() error {
 	return c.Write(&ret)
 }
 
-func (c *Conn) playResp(cs *ChunkStream, cmd *command.Command) error {
+func (c *Conn) playResp(cs *ChunkStream) error {
 	if err := c.markStreamBegin(); err != nil {
 		return err
 	}
-
 	event := make(newamf.Object)
+	// 播放列表重置
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.Reset"
 	event["description"] = "Playing and resetting stream."
@@ -185,35 +206,21 @@ func (c *Conn) playResp(cs *ChunkStream, cmd *command.Command) error {
 		return err
 	}
 
+	// 播放开始
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.Start"
 	event["description"] = "Started playing stream."
 	if err := c.writeCommandMsg(cs.CSID, cs.StreamID, "onStatus", 0, nil, event); err != nil {
 		return err
 	}
-
-	event["level"] = "status"
-	event["code"] = "NetStream.Data.Start"
-	event["description"] = "Started playing stream."
-	if err := c.writeCommandMsg(cs.CSID, cs.StreamID, "onStatus", 0, nil, event); err != nil {
-		return err
-	}
-
-	event["level"] = "status"
-	event["code"] = "NetStream.Play.PublishNotify"
-	event["description"] = "Started playing notify."
-	if err := c.writeCommandMsg(cs.CSID, cs.StreamID, "onStatus", 0, nil, event); err != nil {
-		return err
-	}
-	c.bufWriter.Flush()
 	return nil
 }
 
-func (c *Conn) createStreamResp(cs *ChunkStream, cmd *command.Command) error {
+func (c *Conn) createStreamResp(cs *ChunkStream, cmd *Command) error {
 	return c.writeCommandMsg(cs.CSID, cs.StreamID, "_result", cmd.CommandTransId, nil, 1)
 }
 
-func (c *Conn) handleCommandMsgAMF0(b []byte) (cmd *command.Command, err error) {
+func (c *Conn) handleCommandMsgAMF0(b []byte) (cmd *Command, err error) {
 	/*	{
 		"GotCommand": true,
 		"CommandName": "connect",
@@ -232,7 +239,7 @@ func (c *Conn) handleCommandMsgAMF0(b []byte) (cmd *command.Command, err error) 
 		n    int
 	)
 
-	cmd = &command.Command{}
+	cmd = &Command{}
 
 	if name, size, err = amf.ParseAMF0Val(b[n:]); err != nil {
 		return

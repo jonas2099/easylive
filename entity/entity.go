@@ -1,4 +1,4 @@
-package model
+package entity
 
 import (
 	"github.com/gwuhaolin/livego/av"

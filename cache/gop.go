@@ -3,7 +3,7 @@ package cache
 import (
 	"fmt"
 	"github.com/gwuhaolin/livego/av"
-	"github.com/haroldleong/easylive/model"
+	"github.com/haroldleong/easylive/entity"
 )
 
 var (
@@ -13,13 +13,13 @@ var (
 
 type array struct {
 	index   int
-	packets []*model.Packet
+	packets []*entity.Packet
 }
 
 func newArray() *array {
 	ret := &array{
 		index:   0,
-		packets: make([]*model.Packet, 0, maxGOPCap),
+		packets: make([]*entity.Packet, 0, maxGOPCap),
 	}
 	return ret
 }
@@ -29,7 +29,7 @@ func (array *array) reset() {
 	array.packets = array.packets[:0]
 }
 
-func (array *array) write(packet *model.Packet) error {
+func (array *array) write(packet *entity.Packet) error {
 	if array.index >= maxGOPCap {
 		return ErrGopTooBig
 	}
@@ -38,7 +38,7 @@ func (array *array) write(packet *model.Packet) error {
 	return nil
 }
 
-func (array *array) send(pChan chan *model.Packet) error {
+func (array *array) send(pChan chan *entity.Packet) error {
 	var err error
 	for i := 0; i < array.index; i++ {
 		packet := array.packets[i]
@@ -63,7 +63,7 @@ func NewGopCache(num int) *GopCache {
 	}
 }
 
-func (gopCache *GopCache) writeToArray(chunk *model.Packet, startNew bool) error {
+func (gopCache *GopCache) writeToArray(chunk *entity.Packet, startNew bool) error {
 	var ginc *array
 	if startNew {
 		ginc = gopCache.gops[gopCache.nextindex]
@@ -83,7 +83,7 @@ func (gopCache *GopCache) writeToArray(chunk *model.Packet, startNew bool) error
 	return nil
 }
 
-func (gopCache *GopCache) Write(p *model.Packet) {
+func (gopCache *GopCache) Write(p *entity.Packet) {
 	var ok bool
 	if p.IsVideo {
 		vh := p.Header.(av.VideoPacketHeader)
@@ -97,7 +97,7 @@ func (gopCache *GopCache) Write(p *model.Packet) {
 	}
 }
 
-func (gopCache *GopCache) sendTo(pChan chan *model.Packet) error {
+func (gopCache *GopCache) sendTo(pChan chan *entity.Packet) error {
 	var err error
 	pos := (gopCache.nextindex + 1) % gopCache.count
 	for i := 0; i < gopCache.num; i++ {
@@ -114,6 +114,6 @@ func (gopCache *GopCache) sendTo(pChan chan *model.Packet) error {
 	return nil
 }
 
-func (gopCache *GopCache) Send(pChan chan *model.Packet) error {
+func (gopCache *GopCache) Send(pChan chan *entity.Packet) error {
 	return gopCache.sendTo(pChan)
 }

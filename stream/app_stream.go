@@ -5,7 +5,7 @@ import (
 	"github.com/gwuhaolin/livego/container/flv"
 	"github.com/haroldleong/easylive/cache"
 	"github.com/haroldleong/easylive/conn"
-	"github.com/haroldleong/easylive/model"
+	"github.com/haroldleong/easylive/entity"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,7 +22,7 @@ func NewAppStream() *AppStream {
 	}
 }
 
-func DemuxH(p *model.Packet) error {
+func DemuxH(p *entity.Packet) error {
 	var tag flv.Tag
 	_, err := tag.ParseMediaTagHeader(p.CStream.Data, p.IsVideo)
 	if err != nil {
@@ -37,7 +37,7 @@ func (as *AppStream) ReadingData(conn *conn.Conn) {
 	as.anchorStream = &Stream{conn: conn}
 	for {
 		cs := as.anchorStream.getStreamChunkStream()
-		p := &model.Packet{CStream: *cs}
+		p := &entity.Packet{CStream: *cs}
 		p.IsMetadata = cs.TypeID == av.TAG_SCRIPTDATAAMF0 || cs.TypeID == av.TAG_SCRIPTDATAAMF3
 		if p.IsMetadata {
 			log.Errorf("")

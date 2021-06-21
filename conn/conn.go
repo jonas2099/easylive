@@ -3,7 +3,6 @@ package conn
 import (
 	"bufio"
 	"fmt"
-	"github.com/haroldleong/easylive/command"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -40,7 +39,7 @@ type Conn struct {
 
 	messageDone bool // 是否处理完
 
-	ConnInfo *command.ConnectInfo // 连接信息
+	ConnInfo *ConnectInfo // 连接信息
 
 	ConnType ConnectionType // 是否是推流or拉流
 }
@@ -62,7 +61,7 @@ func NewConn(netConn net.Conn) *Conn {
 	conn.tmpWriteData = make([]byte, 4096)
 	conn.tmpReadData = make([]byte, 4096)
 
-	conn.ConnInfo = &command.ConnectInfo{}
+	conn.ConnInfo = &ConnectInfo{}
 	conn.remoteWindowAckSize = remoteWindowAckSize
 	return conn
 }

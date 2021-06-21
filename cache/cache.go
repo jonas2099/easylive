@@ -2,7 +2,7 @@ package cache
 
 import (
 	"github.com/gwuhaolin/livego/av"
-	"github.com/haroldleong/easylive/model"
+	"github.com/haroldleong/easylive/entity"
 )
 
 type Cache struct {
@@ -21,7 +21,7 @@ func NewCache() *Cache {
 	}
 }
 
-func (cache *Cache) Write(p *model.Packet) {
+func (cache *Cache) Write(p *entity.Packet) {
 	if p.IsMetadata {
 		cache.metadata.Write(p)
 		return
@@ -37,7 +37,6 @@ func (cache *Cache) Write(p *model.Packet) {
 					return
 				}
 			}
-
 		} else {
 			vh, ok := p.Header.(av.VideoPacketHeader)
 			if ok {
@@ -48,13 +47,12 @@ func (cache *Cache) Write(p *model.Packet) {
 			} else {
 				return
 			}
-
 		}
 	}
 	cache.gop.Write(p)
 }
 
-func (cache *Cache) Send(pChan chan *model.Packet) error {
+func (cache *Cache) Send(pChan chan *entity.Packet) error {
 	if err := cache.metadata.Send(pChan); err != nil {
 		return err
 	}

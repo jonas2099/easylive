@@ -2,7 +2,7 @@ package cache
 
 import (
 	"bytes"
-	"github.com/haroldleong/easylive/model"
+	"github.com/haroldleong/easylive/entity"
 
 	"github.com/gwuhaolin/livego/protocol/amf"
 
@@ -27,19 +27,19 @@ func init() {
 
 type SpecialCache struct {
 	full bool
-	p    *model.Packet
+	p    *entity.Packet
 }
 
 func NewSpecialCache() *SpecialCache {
 	return &SpecialCache{}
 }
 
-func (specialCache *SpecialCache) Write(p *model.Packet) {
+func (specialCache *SpecialCache) Write(p *entity.Packet) {
 	specialCache.p = p
 	specialCache.full = true
 }
 
-func (specialCache *SpecialCache) Send(pChan chan *model.Packet) error {
+func (specialCache *SpecialCache) Send(pChan chan *entity.Packet) error {
 	if !specialCache.full {
 		return nil
 	}

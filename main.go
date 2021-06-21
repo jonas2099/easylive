@@ -1,9 +1,12 @@
 package main
 
 import (
+	"path"
+	"runtime"
+	"time"
+
 	"github.com/haroldleong/easylive/server"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 func main() {
@@ -13,15 +16,17 @@ func main() {
 			time.Sleep(1 * time.Second)
 		}
 	}()
-	log.SetLevel(log.TraceLevel)
-	log.Infof(`
-   _____   _____   ______              _    
-  (_____) / ___ \ |  ___ \    /\      | |   
-     _   | |   | || |   | |  /  \      \ \  
-    | |  | |   | || |   | | / /\ \      \ \ 
- ___| |  | |___| || |   | || |__| | _____) )
-(____/    \_____/ |_|   |_||______|(______/ 
-	`)
+	log.SetLevel(log.DebugLevel)
+	log.SetReportCaller(true)
+	log.SetFormatter(&log.TextFormatter{
+		DisableLevelTruncation: true,
+		FullTimestamp:          true,
+		TimestampFormat:        "2006-01-02 15:03:04",
+		CallerPrettyfier: func(frame *runtime.Frame) (function string, file string) {
+			fileName := path.Base(frame.File)
+			return frame.Function, fileName
+		},
+	})
 	server := server.New()
 	server.StartServe()
 }
