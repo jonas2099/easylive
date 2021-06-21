@@ -11,7 +11,8 @@ a sample project to understand rtmp protocol
 ### Installing
 
 ```
-推流地址：rtmp://localhost:1936/movie
+拉流地址：ffplay rtmp://localhost:1936/movie
+推流地址：ffmpeg -re -i 1.flv -c copy -f flv rtmp://localhost/movie
 ```
 
 ## Help

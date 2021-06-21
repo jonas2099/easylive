@@ -2,8 +2,7 @@ package cache
 
 import (
 	"fmt"
-	"github.com/gwuhaolin/livego/av"
-	"github.com/haroldleong/easylive/entity"
+	"github.com/haroldleong/easylive/container"
 )
 
 var (
@@ -13,13 +12,13 @@ var (
 
 type array struct {
 	index   int
-	packets []*entity.Packet
+	packets []*container.Packet
 }
 
 func newArray() *array {
 	ret := &array{
 		index:   0,
-		packets: make([]*entity.Packet, 0, maxGOPCap),
+		packets: make([]*container.Packet, 0, maxGOPCap),
 	}
 	return ret
 }
@@ -29,7 +28,7 @@ func (array *array) reset() {
 	array.packets = array.packets[:0]
 }
 
-func (array *array) write(packet *entity.Packet) error {
+func (array *array) write(packet *container.Packet) error {
 	if array.index >= maxGOPCap {
 		return ErrGopTooBig
 	}
@@ -38,7 +37,7 @@ func (array *array) write(packet *entity.Packet) error {
 	return nil
 }
 
-func (array *array) send(pChan chan *entity.Packet) error {
+func (array *array) send(pChan chan *container.Packet) error {
 	var err error
 	for i := 0; i < array.index; i++ {
 		packet := array.packets[i]
@@ -63,7 +62,7 @@ func NewGopCache(num int) *GopCache {
 	}
 }
 
-func (gopCache *GopCache) writeToArray(chunk *entity.Packet, startNew bool) error {
+func (gopCache *GopCache) writeToArray(chunk *container.Packet, startNew bool) error {
 	var ginc *array
 	if startNew {
 		ginc = gopCache.gops[gopCache.nextindex]
@@ -83,11 +82,10 @@ func (gopCache *GopCache) writeToArray(chunk *entity.Packet, startNew bool) erro
 	return nil
 }
 
-func (gopCache *GopCache) Write(p *entity.Packet) {
+func (gopCache *GopCache) Write(p *container.Packet) {
 	var ok bool
-	if p.IsVideo {
-		vh := p.Header.(av.VideoPacketHeader)
-		if vh.IsKeyFrame() && !vh.IsSeq() {
+	if p.IsType(container.PacketTypeVideo) {
+		if p.Tag.IsKeyFrame() && !p.Tag.IsSeq() {
 			ok = true
 		}
 	}
@@ -97,7 +95,7 @@ func (gopCache *GopCache) Write(p *entity.Packet) {
 	}
 }
 
-func (gopCache *GopCache) sendTo(pChan chan *entity.Packet) error {
+func (gopCache *GopCache) sendTo(pChan chan *container.Packet) error {
 	var err error
 	pos := (gopCache.nextindex + 1) % gopCache.count
 	for i := 0; i < gopCache.num; i++ {
@@ -114,6 +112,6 @@ func (gopCache *GopCache) sendTo(pChan chan *entity.Packet) error {
 	return nil
 }
 
-func (gopCache *GopCache) Send(pChan chan *entity.Packet) error {
+func (gopCache *GopCache) Send(pChan chan *container.Packet) error {
 	return gopCache.sendTo(pChan)
 }

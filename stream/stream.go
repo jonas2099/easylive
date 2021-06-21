@@ -4,7 +4,7 @@ import (
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/haroldleong/easylive/conn"
 	"github.com/haroldleong/easylive/consts"
-	"github.com/haroldleong/easylive/entity"
+	"github.com/haroldleong/easylive/container"
 	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 	"sync"
@@ -13,14 +13,14 @@ import (
 type Stream struct {
 	conn        *conn.Conn
 	mutex       sync.Mutex
-	packetQueue chan *entity.Packet
+	packetQueue chan *container.Packet
 	init        bool
 }
 
 func New(connection *conn.Conn) *Stream {
 	return &Stream{
 		conn:        connection,
-		packetQueue: make(chan *entity.Packet, 2048),
+		packetQueue: make(chan *container.Packet, 2048),
 	}
 }
 
@@ -41,11 +41,11 @@ func (s *Stream) writeToAudience() {
 		// 接收流
 		p, ok := <-s.packetQueue
 		if ok {
-			cs.Data = p.CStream.Data
-			cs.Length = uint32(len(p.CStream.Data))
-			cs.StreamID = p.CStream.StreamID
-			cs.Timestamp = p.CStream.Timestamp
-			cs.TypeID = p.CStream.TypeID
+			cs.Data = p.OriginChunk.Data
+			cs.Length = uint32(len(p.OriginChunk.Data))
+			cs.StreamID = p.OriginChunk.StreamID
+			cs.Timestamp = p.OriginChunk.Timestamp
+			cs.TypeID = p.OriginChunk.TypeID
 			// log.Debugf("writeToAudience.get data.cs:%v", util.JSON(cs))
 			if err := s.sendStreamChunk(&cs); err != nil {
 				log.Errorf("writeToAudience.sendStreamChunk err.%v", err)

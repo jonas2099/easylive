@@ -1,11 +1,9 @@
 package stream
 
 import (
-	"github.com/gwuhaolin/livego/av"
-	"github.com/gwuhaolin/livego/container/flv"
 	"github.com/haroldleong/easylive/cache"
 	"github.com/haroldleong/easylive/conn"
-	"github.com/haroldleong/easylive/entity"
+	"github.com/haroldleong/easylive/container"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,31 +20,14 @@ func NewAppStream() *AppStream {
 	}
 }
 
-func DemuxH(p *entity.Packet) error {
-	var tag flv.Tag
-	_, err := tag.ParseMediaTagHeader(p.CStream.Data, p.IsVideo)
-	if err != nil {
-		return err
-	}
-	p.Header = &tag
-
-	return nil
-}
-
 func (as *AppStream) ReadingData(conn *conn.Conn) {
 	as.anchorStream = &Stream{conn: conn}
 	for {
 		cs := as.anchorStream.getStreamChunkStream()
-		p := &entity.Packet{CStream: *cs}
-		p.IsMetadata = cs.TypeID == av.TAG_SCRIPTDATAAMF0 || cs.TypeID == av.TAG_SCRIPTDATAAMF3
-		if p.IsMetadata {
-			log.Errorf("")
+		if cs == nil {
+			return
 		}
-		p.IsAudio = cs.TypeID == av.TAG_AUDIO
-		p.IsVideo = cs.TypeID == av.TAG_VIDEO
-		if err := DemuxH(p); err != nil {
-			log.Errorf("ReadingData.DemuxH.%v", err)
-		}
+		p := container.GetPacketByChunk(cs)
 		as.cache.Write(p)
 		for _, audienceStream := range as.audienceStreams {
 			// H264的码流结构主要由SPS、 PPS、 IDR 帧（包含一个或多个 I-Slice）、 P 帧（包含一个或多个P-Slice）、 B 帧（包含一个或多个 B-Slice）等部分组成
