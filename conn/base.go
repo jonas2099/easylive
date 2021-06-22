@@ -6,6 +6,9 @@ import (
 	"fmt"
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/haroldleong/easylive/consts"
+	"github.com/haroldleong/easylive/format/flv/amf"
+	"github.com/haroldleong/easylive/util"
+	log "github.com/sirupsen/logrus"
 	"io"
 )
 
@@ -17,7 +20,15 @@ func (c *Conn) readData(n int32) ([]byte, error) {
 	return mh, nil
 }
 
-func (c *Conn) WriteAndFlush(cs *ChunkStream) error {
+func (c *Conn) WriteChunk(cs *ChunkStream) error {
+	if cs.TypeID == consts.MsgTypeIDDataMsgAMF0 ||
+		cs.TypeID == consts.MsgTypeIDDataMsgAMF3 {
+		var err error
+		if cs.Data, err = newamf.MetaDataReform(cs.Data, newamf.DEL); err != nil {
+			return err
+		}
+		cs.Length = uint32(len(cs.Data))
+	}
 	if err := c.Write(cs); err != nil {
 		return err
 	}
@@ -156,4 +167,82 @@ func (c *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
 	ret.Data[0] = byte(eventType >> 8 & 0xff)
 	ret.Data[1] = byte(eventType & 0xff)
 	return ret
+}
+
+func (c *Conn) handleCommandMsgAMF0(b []byte) (cmd *Command, err error) {
+	// 命令解析详见https://www.jianshu.com/p/7dd3b5b4e092
+	/*	{
+		"GotCommand": true,
+		"CommandName": "connect",
+		"CommandTransId": 1,
+		"CommandObj": {
+			"app": "movie",
+			"flashVer": "FMLE/3.0 (compatible; Lavf58.76.100)",
+			"tcUrl": "rtmp://localhost:1936/movie",
+			"type": "nonprivate"
+		},
+		"CommandParams": []
+	}*/
+	var name, transid, obj interface{}
+	var (
+		size int
+		n    int
+	)
+
+	cmd = &Command{}
+
+	if name, size, err = amf.ParseAMF0Val(b[n:]); err != nil {
+		return
+	}
+	n += size
+	if transid, size, err = amf.ParseAMF0Val(b[n:]); err != nil {
+		return
+	}
+	n += size
+	if obj, size, err = amf.ParseAMF0Val(b[n:]); err != nil {
+		return
+	}
+	n += size
+
+	var ok bool
+	if cmd.CommandName, ok = name.(string); !ok {
+		err = fmt.Errorf("rtmp: CommandMsgAMF0 command is not string")
+		return
+	}
+	cmd.CommandTransId, _ = transid.(float64)
+	cmd.CommandObj, _ = obj.(amf.AMFMap)
+	cmd.CommandParams = []interface{}{}
+
+	for n < len(b) {
+		if obj, size, err = amf.ParseAMF0Val(b[n:]); err != nil {
+			return
+		}
+		n += size
+		cmd.CommandParams = append(cmd.CommandParams, obj)
+	}
+	if n < len(b) {
+		err = fmt.Errorf("rtmp: CommandMsgAMF0 left bytes=%d", len(b)-n)
+		return
+	}
+	cmd.GotCommand = true
+
+	r := bytes.NewReader(b)
+	vs, _ := DecodeBatch(r)
+	log.Errorf("DecodeBatch.vs:%v", util.JSON(vs))
+	log.Errorf("DecodeBatch.cmd:%v", util.JSON(cmd))
+
+	return
+}
+
+func DecodeBatch(r io.Reader) (ret []interface{}, err error) {
+	var v interface{}
+	d := &newamf.Decoder{}
+	for {
+		v, err = d.Decode(r, newamf.AMF0)
+		if err != nil {
+			break
+		}
+		ret = append(ret, v)
+	}
+	return
 }

@@ -1,7 +1,6 @@
 package stream
 
 import (
-	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/haroldleong/easylive/conn"
 	"github.com/haroldleong/easylive/consts"
 	"github.com/haroldleong/easylive/container"
@@ -79,15 +78,7 @@ func (s *Stream) getStreamChunkStream() *conn.ChunkStream {
 func (s *Stream) sendStreamChunk(cs *conn.ChunkStream) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	if cs.TypeID == consts.MsgTypeIDDataMsgAMF0 ||
-		cs.TypeID == consts.MsgTypeIDDataMsgAMF3 {
-		var err error
-		if cs.Data, err = newamf.MetaDataReform(cs.Data, newamf.DEL); err != nil {
-			return err
-		}
-		cs.Length = uint32(len(cs.Data))
-	}
-	return s.conn.WriteAndFlush(cs)
+	return s.conn.WriteChunk(cs)
 }
 
 func GetChunk(newConn *conn.Conn) *conn.ChunkStream {
