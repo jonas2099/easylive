@@ -13,7 +13,7 @@ type Cache struct {
 
 func NewCache() *Cache {
 	return &Cache{
-		gop:      NewGopCache(1),
+		gop:      NewGopCache(2),
 		videoSeq: NewPackageCache(),
 		audioSeq: NewPackageCache(),
 		metadata: NewPackageCache(),

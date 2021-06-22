@@ -6,16 +6,14 @@ import (
 	newamf "github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/gwuhaolin/livego/utils/pio"
 	"github.com/haroldleong/easylive/consts"
-	"github.com/haroldleong/easylive/format/flv/amf"
 	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
 )
 
 type Command struct {
-	GotCommand     bool
 	CommandName    string
 	CommandTransId float64
-	CommandObj     amf.AMFMap
+	CommandObj     newamf.Object
 	CommandParams  []interface{}
 }
 
