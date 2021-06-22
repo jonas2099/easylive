@@ -168,7 +168,7 @@ func (c *Conn) ReadChunk() (*ChunkStream, error) {
 			cs.useExtendTimeStamp = false
 		}
 		cs.initData()
-	case 1: //1: Message Header 为 7 字节编码，通常在fmt0之后
+	case 1: //1: Message Header 为 7 字节编码，通常在fmt0之后。针对可变大小的chunk
 		var mh []byte
 		if mh, err = c.readData(7); err != nil {
 			return nil, err
@@ -189,7 +189,7 @@ func (c *Conn) ReadChunk() (*ChunkStream, error) {
 		cs.timeDelta = timestamp
 		cs.Timestamp += timestamp
 		cs.initData()
-	case 2: //2: Message Header 为 3 字节编码，只有一个timestamp delta
+	case 2: //2: Message Header 为 3 字节编码，只有一个timestamp delta。针对固定大小
 		var mh []byte
 		if mh, err = c.readData(3); err != nil {
 			return nil, err
@@ -208,8 +208,11 @@ func (c *Conn) ReadChunk() (*ChunkStream, error) {
 		cs.timeDelta = timestamp
 		cs.Timestamp += timestamp
 		cs.initData()
-	case 3: //3: Message Header 为 0 字节编码，如果前面一个 chunk 里面存在 timestrameDelta，那么计算 fmt 为 3 的 chunk 时，就直接相加，如果没有，则是使用前一个 chunk 的 timestamp 来进行相加
-		if cs.remain == 0 {
+	case 3:
+		//3: Message Header 为 0 字节编码
+		//如果前面一个 chunk 里面存在 timestampDelta，那么计算 fmt 为 3 的 chunk 时，就直接相加，
+		//如果没有，则是使用前一个 chunk 的 timestamp 来进行相加
+		if cs.remain == 0 { //这个chunk都是fmt3类型，不为0需要读chunk剩余部分
 			switch cs.Format {
 			case 0:
 				if cs.useExtendTimeStamp {
@@ -231,13 +234,10 @@ func (c *Conn) ReadChunk() (*ChunkStream, error) {
 				cs.Timestamp += timestamp
 			}
 			cs.initData()
-		} else {
-			// log.Infof("ReadChunk. cs.remain is not 0,useExtendTimeStamp:%v,remain:%d", cs.useExtendTimeStamp, cs.remain)
 		}
 	default:
 		return nil, fmt.Errorf("invalid format=%d", format)
 	}
-	// log.Debugf("ReadChunk.cs:%s", util.JSON(cs))
 	size := int(cs.remain)
 	if size > c.readMaxChunkSize {
 		size = c.readMaxChunkSize

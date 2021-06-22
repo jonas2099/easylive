@@ -1,9 +1,6 @@
 package consts
 
-const (
-	FlvTimestampMax   = 0xFFFFFF
-	chunkHeaderLength = 12
-)
+const FlvTimestampMax = 0xFFFFFF
 
 type UserControl uint32
 

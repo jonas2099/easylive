@@ -4,7 +4,7 @@ type ChunkStream struct {
 	Format             uint8
 	CSID               uint32
 	Timestamp          uint32
-	Length             uint32
+	Length             uint32 // chunk总长度
 	TypeID             uint32
 	StreamID           uint32
 	timeDelta          uint32 // 增量时间戳
