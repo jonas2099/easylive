@@ -84,15 +84,15 @@ func (c *Conn) writeHeader(cs *ChunkStream) error {
 	switch {
 	case cs.CSID < 64:
 		h |= uint8(cs.CSID)
-		c.WriteUintBE(uint32(h), 1)
+		_ = c.WriteUintBE(uint32(h), 1)
 	case cs.CSID-64 < 256:
 		h |= 0
-		c.WriteUintBE(uint32(h), 1)
-		c.WriteUintLE(cs.CSID-64, 1)
+		_ = c.WriteUintBE(uint32(h), 1)
+		_ = c.WriteUintLE(cs.CSID-64, 1)
 	case cs.CSID-64 < 65536:
 		h |= 1
-		c.WriteUintBE(uint32(h), 1)
-		c.WriteUintLE(cs.CSID-64, 2)
+		_ = c.WriteUintBE(uint32(h), 1)
+		_ = c.WriteUintLE(cs.CSID-64, 2)
 	}
 	//Chunk Message Header
 	ts := cs.Timestamp
@@ -102,23 +102,23 @@ func (c *Conn) writeHeader(cs *ChunkStream) error {
 	if cs.Timestamp > consts.FlvTimestampMax {
 		ts = consts.FlvTimestampMax
 	}
-	c.WriteUintBE(ts, 3)
+	_ = c.WriteUintBE(ts, 3)
 	if cs.Format == 2 {
 		goto END
 	}
 	if cs.Length > consts.FlvTimestampMax {
 		return fmt.Errorf("length=%d", cs.Length)
 	}
-	c.WriteUintBE(cs.Length, 3)
-	c.WriteUintBE(cs.TypeID, 1)
+	_ = c.WriteUintBE(cs.Length, 3)
+	_ = c.WriteUintBE(cs.TypeID, 1)
 	if cs.Format == 1 {
 		goto END
 	}
-	c.WriteUintLE(cs.StreamID, 4)
+	_ = c.WriteUintLE(cs.StreamID, 4)
 END:
 	//Extended Timestamp
 	if ts >= consts.FlvTimestampMax {
-		c.WriteUintBE(cs.Timestamp, 4)
+		_ = c.WriteUintBE(cs.Timestamp, 4)
 	}
 	return nil
 }

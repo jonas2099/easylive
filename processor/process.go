@@ -66,7 +66,7 @@ func (p *ConnProcessor) handshake() error {
 	// handshake
 	if err := p.conn.HandshakeServer(); err != nil {
 		p.conn.NetConn.Close()
-		log.Error("handshake.HandshakeServer err:%v ", err)
+		log.Errorf("handshake.HandshakeServer err:%v ", err)
 		return err
 	}
 	log.Debugf("handshake.handshake success")

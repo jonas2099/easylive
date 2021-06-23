@@ -6,42 +6,36 @@ import (
 )
 
 var (
-	maxGOPCap    int = 1024
-	ErrGopTooBig     = fmt.Errorf("gop to big")
+	maxGOPCapacity = 1024
+	ErrGopTooBig   = fmt.Errorf("gop size over limit")
 )
 
-type array struct {
-	index   int
+type gop struct {
 	packets []*container.Packet
 }
 
-func newArray() *array {
-	ret := &array{
-		index:   0,
-		packets: make([]*container.Packet, 0, maxGOPCap),
+func newArray() *gop {
+	ret := &gop{
+		packets: make([]*container.Packet, 0, maxGOPCapacity),
 	}
 	return ret
 }
 
-func (array *array) reset() {
-	array.index = 0
-	array.packets = array.packets[:0]
+func (g *gop) reset() {
+	g.packets = g.packets[:0]
 }
 
-func (array *array) write(packet *container.Packet) error {
-	if array.index >= maxGOPCap {
+func (g *gop) write(packet *container.Packet) error {
+	if len(g.packets) >= maxGOPCapacity {
 		return ErrGopTooBig
 	}
-	array.packets = append(array.packets, packet)
-	array.index++
+	g.packets = append(g.packets, packet)
 	return nil
 }
 
-func (array *array) send(pChan chan *container.Packet) error {
+func (g *gop) readAndSend(pChan chan *container.Packet) error {
 	var err error
-	for i := 0; i < array.index; i++ {
-		packet := array.packets[i]
-
+	for _, packet := range g.packets {
 		pChan <- packet
 	}
 	return err
@@ -52,18 +46,18 @@ type GopCache struct {
 	num       int
 	count     int
 	nextindex int
-	gops      []*array
+	gops      []*gop
 }
 
 func NewGopCache(num int) *GopCache {
 	return &GopCache{
 		count: num,
-		gops:  make([]*array, num),
+		gops:  make([]*gop, num),
 	}
 }
 
 func (gopCache *GopCache) writeToArray(chunk *container.Packet, startNew bool) error {
-	var ginc *array
+	var ginc *gop
 	if startNew {
 		ginc = gopCache.gops[gopCache.nextindex]
 		if ginc == nil {
@@ -91,7 +85,7 @@ func (gopCache *GopCache) Write(p *container.Packet) {
 	}
 	if ok || gopCache.start {
 		gopCache.start = true
-		gopCache.writeToArray(p, ok)
+		_ = gopCache.writeToArray(p, ok)
 	}
 }
 
@@ -104,7 +98,7 @@ func (gopCache *GopCache) sendTo(pChan chan *container.Packet) error {
 			index += gopCache.count
 		}
 		g := gopCache.gops[index]
-		err = g.send(pChan)
+		err = g.readAndSend(pChan)
 		if err != nil {
 			return err
 		}

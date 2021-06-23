@@ -46,7 +46,7 @@ func hsParse1(p []byte, peerkey []byte, key []byte) (ok bool, digest []byte) {
 func hsFindDigest(p []byte, key []byte, base int) int {
 	gap := hsCalcDigestPos(p, base)
 	digest := hsMakeDigest(key, p, gap)
-	if bytes.Compare(p[gap:gap+32], digest) != 0 {
+	if !bytes.Equal(p[gap:gap+32], digest) {
 		return -1
 	}
 	return gap

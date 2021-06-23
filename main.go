@@ -28,5 +28,8 @@ func main() {
 		},
 	})
 	server := server.New()
-	server.StartServe()
+	err := server.StartServe()
+	if err != nil {
+		panic(err)
+	}
 }
