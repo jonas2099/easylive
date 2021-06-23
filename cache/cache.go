@@ -25,18 +25,18 @@ func (cache *Cache) Write(p *container.Packet) {
 		cache.metadata.Write(p)
 		return
 	} else if p.IsType(container.PacketTypeAudio) {
-		if p.Tag.AudioHeader.SoundFormat == container.SOUND_AAC &&
-			p.Tag.AudioHeader.AACPacketType == container.AAC_SEQHDR {
+		if p.Tag.AudioHeader.SoundFormat == container.SoundAAC &&
+			p.Tag.AudioHeader.AACPacketType == container.AACSequenceHeader {
 			// 必须要在发送第一个 AAC raw 包之前发送这个 AAC sequence header 包
 			cache.audioSeq.Write(p)
 			return
 		}
 	} else {
-		if p.Tag.VideoHeader.FrameType == container.FRAME_KEY &&
-			p.Tag.VideoHeader.AVCPacketType == container.AVC_SEQHDR {
+		if p.Tag.VideoHeader.FrameType == container.FrameKey &&
+			p.Tag.VideoHeader.AVCPacketType == container.AVCSequenceHeader {
 			// 在给AVC解码器送数据流之前一定要把sps和pps信息送出否则的话解码器不能正常解码
-			// SPS即Sequence Paramater Set，又称作序列参数集,作为全局参数
-			// Picture Paramater Set(PPS)
+			// 序列参数集 Sequence Parameter Set，作为全局参数
+			// 图像参数集 Picture Parameter Set
 			cache.videoSeq.Write(p)
 			return
 		}

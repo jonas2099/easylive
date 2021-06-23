@@ -6,37 +6,19 @@ import (
 
 // 参考https://juejin.cn/post/6844903678688624647
 const (
-	SOUND_MP3                   = 2
-	SOUND_NELLYMOSER_16KHZ_MONO = 4
-	SOUND_NELLYMOSER_8KHZ_MONO  = 5
-	SOUND_NELLYMOSER            = 6
-	SOUND_ALAW                  = 7
-	SOUND_MULAW                 = 8
-	SOUND_AAC                   = 10
-	SOUND_SPEEX                 = 11
+	SoundAAC = 10
 
-	SOUND_5_5Khz = 0
-	SOUND_11Khz  = 1
-	SOUND_22Khz  = 2
-	SOUND_44Khz  = 3
+	AACSequenceHeader = 0
+	AACRaw            = 1
 
-	SOUND_8BIT  = 0
-	SOUND_16BIT = 1
+	AVCSequenceHeader = 0
+	AVCNalu           = 1
+	AVCEos            = 2
 
-	SOUND_MONO   = 0
-	SOUND_STEREO = 1
-
-	AAC_SEQHDR = 0
-	AAC_RAW    = 1
-
-	AVC_SEQHDR = 0
-	AVC_NALU   = 1
-	AVC_EOS    = 2
-
-	FRAME_KEY   = 1
-	FRAME_INTER = 2
-
-	VIDEO_H264 = 7
+	// 实际上RTMP的帧类型中，只是区分了IDR帧和非IDR帧，非IDR帧中包含P帧和B帧
+	FrameKey   = 1
+	FrameInter = 2
+	VideoH264  = 7
 )
 
 type VideoTagHeader struct {
@@ -138,7 +120,7 @@ func (vh *VideoTagHeader) parseVideoHeader(b []byte) (n int, err error) {
 	vh.FrameType = flags >> 4
 	vh.CodecID = flags & 0xf
 	n++
-	if vh.FrameType == FRAME_INTER || vh.FrameType == FRAME_KEY {
+	if vh.FrameType == FrameInter || vh.FrameType == FrameKey {
 		vh.AVCPacketType = b[1]
 		for i := 2; i < 5; i++ {
 			vh.CompositionTime = vh.CompositionTime<<8 + int32(b[i])
@@ -160,7 +142,7 @@ func (ah *AudioTagHeader) parseAudioHeader(b []byte) (n int, err error) {
 	ah.SoundType = flags & 0x1
 	n++
 	switch ah.SoundFormat {
-	case SOUND_AAC:
+	case SoundAAC:
 		ah.AACPacketType = b[1]
 		n++
 	}
@@ -174,10 +156,10 @@ type Tag struct {
 }
 
 func (tag *Tag) IsKeyFrame() bool {
-	return tag.VideoHeader.FrameType == FRAME_KEY
+	return tag.VideoHeader.FrameType == FrameKey
 }
 
 func (tag *Tag) IsSeq() bool {
-	return tag.VideoHeader.FrameType == FRAME_KEY &&
-		tag.VideoHeader.AVCPacketType == AVC_SEQHDR
+	return tag.VideoHeader.FrameType == FrameKey &&
+		tag.VideoHeader.AVCPacketType == AVCSequenceHeader
 }
