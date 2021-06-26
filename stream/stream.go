@@ -1,37 +1,42 @@
 package stream
 
 import (
+	uuid "github.com/google/uuid"
 	"github.com/haroldleong/easylive/conn"
 	"github.com/haroldleong/easylive/consts"
 	"github.com/haroldleong/easylive/container"
 	"github.com/haroldleong/easylive/util"
 	log "github.com/sirupsen/logrus"
-	"sync"
+	"io"
+)
+
+type streamType int32
+
+const (
+	streamTypeAnchor streamType = iota
+	streamTypeAudience
 )
 
 type Stream struct {
-	conn        *conn.Conn
-	mutex       sync.Mutex
-	packetQueue chan *container.Packet
-	init        bool
+	id          string                 // 唯一标识
+	conn        *conn.Conn             //连接
+	packetQueue chan *container.Packet // 流chan，用于拉流端
+	init        bool                   // 是否初始化
+	streamType  streamType
 }
 
-func New(connection *conn.Conn) *Stream {
-	return &Stream{
-		conn:        connection,
-		packetQueue: make(chan *container.Packet, 2048),
+func New(connection *conn.Conn, anchor bool) *Stream {
+	s := &Stream{
+		id:   uuid.New().String(),
+		conn: connection,
 	}
-}
-
-func (s *Stream) CheckPull() {
-	for {
-		if cs := GetChunk(s.conn); cs == nil {
-			log.Errorf("CheckPull.close")
-			return
-		} else {
-			log.Debugf("CheckPull.cs:%v", util.JSON(cs))
-		}
+	if !anchor {
+		s.packetQueue = make(chan *container.Packet, 2048)
+		s.streamType = streamTypeAudience
+	} else {
+		s.streamType = streamTypeAnchor
 	}
+	return s
 }
 
 func (s *Stream) writeToAudience() {
@@ -76,8 +81,6 @@ func (s *Stream) getStreamChunkStream() *conn.ChunkStream {
 }
 
 func (s *Stream) sendStreamChunk(cs *conn.ChunkStream) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
 	return s.conn.WriteChunk(cs)
 }
 
@@ -87,6 +90,10 @@ func GetChunk(newConn *conn.Conn) *conn.ChunkStream {
 	for {
 		var err error
 		chunk, err = newConn.ReadChunk()
+		if err == io.EOF {
+			log.Infof("getChunk.ReadChunk end")
+			return nil
+		}
 		if err != nil {
 			log.Errorf("getChunk.ReadChunk fail.err:%v", err)
 			return nil
