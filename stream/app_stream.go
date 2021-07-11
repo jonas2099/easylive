@@ -37,7 +37,7 @@ func (as *AppStream) ReadingData(conn *conn.Conn) {
 		}
 		p := container.GetPacketByChunk(cs)
 		as.cache.Write(p)
-		log.Debugf("ReadingData.send %d ", as.audienceStreams.Count())
+		// log.Debugf("ReadingData.send %d ", as.audienceStreams.Count())
 		for _, tmp := range as.audienceStreams.Items() {
 			audienceStream := tmp.(*Stream)
 			// H264的码流结构主要由SPS、 PPS、 IDR 帧（包含一个或多个 I-Slice）、 P 帧（包含一个或多个P-Slice）、 B 帧（包含一个或多个 B-Slice）等部分组成

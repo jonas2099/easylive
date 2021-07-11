@@ -71,6 +71,12 @@ func (c *Conn) HandshakeServer() error {
 
 	C0C1C2 := random[:1536*2+1]
 	C0 := C0C1C2[:1]
+	// C1: time + zero + random
+	// or
+	//time: 4bytes
+	//version: 4bytes
+	//digest: 764bytes
+	//key: 764bytes
 	C1 := C0C1C2[1 : 1536+1]
 	C0C1 := C0C1C2[:1536+1]
 	C2 := C0C1C2[1536+1:]
@@ -89,22 +95,27 @@ func (c *Conn) HandshakeServer() error {
 		return fmt.Errorf("rtmp: handshake version=%d invalid", C0[0])
 	}
 
+	// 版本号，固定为0x03
 	S0[0] = 3
 
-	clitime := pio.U32BE(C1[0:4])
-	srvtime := clitime
-	srvver := uint32(0x0d0e0a0d)
-	cliver := pio.U32BE(C1[4:8])
+	clientTime := pio.U32BE(C1[0:4])
+	serverTime := clientTime
+	// 4 字节的程序版本：C1 一般是 0x80000702，S1 是 0x04050001
+	serverVersion := uint32(0x04050001)
+	clientVersion := pio.U32BE(C1[4:8])
 
-	if cliver != 0 {
+	// 判断是简单握手还是复杂握手
+	if clientVersion != 0 {
+		log.Infof("use complex handshake")
 		var ok bool
 		var digest []byte
 		if ok, digest = hsParse1(C1, hsClientPartialKey, hsServerFullKey); !ok {
 			return fmt.Errorf("rtmp: handshake server: C1 invalid")
 		}
-		hsCreate01(S0S1, srvtime, srvver, hsServerPartialKey)
+		hsCreate01(S0S1, serverTime, serverVersion, hsServerPartialKey)
 		hsCreate2(S2, digest)
 	} else {
+		log.Infof("use simple handshake")
 		copy(S1, C1)
 		copy(S2, C2)
 	}
