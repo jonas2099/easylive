@@ -31,9 +31,11 @@ var (
 	hsServerPartialKey = hsServerFullKey[:36]
 )
 
-func hsParse1(p []byte, peerkey []byte, key []byte) (ok bool, digest []byte) {
+func hsParseC1(p []byte, peerkey []byte, key []byte) (ok bool, digest []byte) {
 	var pos int
+	// digest在后半部分
 	if pos = hsFindDigest(p, peerkey, 772); pos == -1 {
+		// digest在前半部分
 		if pos = hsFindDigest(p, peerkey, 8); pos == -1 {
 			return
 		}
@@ -64,6 +66,7 @@ func hsMakeDigest(key []byte, src []byte, gap int) (dst []byte) {
 }
 
 func hsCalcDigestPos(p []byte, base int) (pos int) {
+	// offset = (c1[8] + c1[9] + c1[10] + c1[11]) % 728 + 12
 	for i := 0; i < 4; i++ {
 		pos += int(p[base+i])
 	}
@@ -71,7 +74,7 @@ func hsCalcDigestPos(p []byte, base int) (pos int) {
 	return
 }
 
-func hsCreate01(p []byte, time uint32, ver uint32, key []byte) {
+func hsCreateS01(p []byte, time uint32, ver uint32, key []byte) {
 	p[0] = 3
 	p1 := p[1:]
 	rand.Read(p1[8:])
@@ -82,7 +85,7 @@ func hsCreate01(p []byte, time uint32, ver uint32, key []byte) {
 	copy(p1[gap:], digest)
 }
 
-func hsCreate2(p []byte, key []byte) {
+func hsCreateS2(p []byte, key []byte) {
 	rand.Read(p)
 	gap := len(p) - 32
 	digest := hsMakeDigest(key, p, gap)

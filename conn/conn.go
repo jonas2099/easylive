@@ -109,11 +109,11 @@ func (c *Conn) HandshakeServer() error {
 		log.Infof("use complex handshake")
 		var ok bool
 		var digest []byte
-		if ok, digest = hsParse1(C1, hsClientPartialKey, hsServerFullKey); !ok {
+		if ok, digest = hsParseC1(C1, hsClientPartialKey, hsServerFullKey); !ok {
 			return fmt.Errorf("rtmp: handshake server: C1 invalid")
 		}
-		hsCreate01(S0S1, serverTime, serverVersion, hsServerPartialKey)
-		hsCreate2(S2, digest)
+		hsCreateS01(S0S1, serverTime, serverVersion, hsServerPartialKey)
+		hsCreateS2(S2, digest)
 	} else {
 		log.Infof("use simple handshake")
 		copy(S1, C1)

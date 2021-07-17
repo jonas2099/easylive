@@ -1,31 +1,25 @@
 // Package conn Protocol Control Messages（协议控制消息）。主要使用来沟通 RTMP 初始状态的相关连接信息，比如，windows size，chunk size
 package conn
 
-import "github.com/Monibuca/engine/v2/util/bits/pio"
-
-const (
-	pcmSetChunkSize = iota + 1
-	pcmAbortMessage
-	pcmAck
-	pcmUserControlMessages
-	pcmWindowAckSize
-	pcmSetPeerBandwidth
+import (
+	"github.com/Monibuca/engine/v2/util/bits/pio"
+	"github.com/haroldleong/easylive/consts"
 )
 
 func (c *Conn) NewAck(size uint32) ChunkStream {
-	return initControlMsg(pcmAck, 4, size)
+	return initControlMsg(consts.MsgTypeIDAck, 4, size)
 }
 
 func (c *Conn) NewSetChunkSize(size uint32) ChunkStream {
-	return initControlMsg(pcmSetChunkSize, 4, size)
+	return initControlMsg(consts.MsgTypeIDSetChunkSize, 4, size)
 }
 
 func (c *Conn) NewWindowAckSize(size uint32) ChunkStream {
-	return initControlMsg(pcmWindowAckSize, 4, size)
+	return initControlMsg(consts.MsgTypeIDWindowAckSize, 4, size)
 }
 
 func (c *Conn) NewSetPeerBandwidth(size uint32) ChunkStream {
-	ret := initControlMsg(pcmSetPeerBandwidth, 5, size)
+	ret := initControlMsg(consts.MsgTypeIDSetPeerBandwidth, 5, size)
 	ret.Data[4] = 2
 	return ret
 }

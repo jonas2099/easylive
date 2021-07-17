@@ -33,7 +33,7 @@ func (c *Conn) WriteChunk(cs *ChunkStream) error {
 }
 
 func (c *Conn) Write(cs *ChunkStream) error {
-	if cs.TypeID == pcmSetChunkSize {
+	if cs.TypeID == consts.MsgTypeIDSetChunkSize {
 		c.writeMaxChunkSize = int(binary.BigEndian.Uint32(cs.Data))
 	}
 	return c.writeChunk(cs, c.writeMaxChunkSize)

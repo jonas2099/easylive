@@ -26,6 +26,7 @@ User Control Message Events(用户控制消息，Message Type ID=4):告知对方
 */
 const (
 	MsgTypeIDSetChunkSize     = 1
+	pcmAbortMessage           = 2
 	MsgTypeIDAck              = 3
 	MsgTypeIDUserControl      = 4
 	MsgTypeIDWindowAckSize    = 5
