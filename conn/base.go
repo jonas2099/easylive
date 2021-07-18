@@ -180,8 +180,7 @@ func (c *Conn) handleCommandMsgAMF0(b []byte) (cmd *Command, err error) {
 		"CommandParams": []
 	}*/
 	cmd = &Command{}
-	r := bytes.NewReader(b)
-	vs, _ := DecodeBatch(r)
+	vs, _ := DecodeBatch(bytes.NewReader(b))
 	cmd.CommandName = vs[0].(string)
 	cmd.CommandTransId = vs[1].(float64)
 	cmd.CommandObj, _ = vs[2].(newamf.Object)

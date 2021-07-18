@@ -69,11 +69,12 @@ func (s *Stream) getStreamChunkStream() *conn.ChunkStream {
 		}
 		if cs.TypeID == consts.MsgTypeIDDataMsgAMF0 ||
 			cs.TypeID == consts.MsgTypeIDDataMsgAMF3 {
-			log.Infof("getStreamChunkStream.get media data.cs:%v", util.JSON(cs))
+			log.Infof("getStreamChunkStream.get amf data.cs:%v", util.JSON(cs))
 			break
 		}
 		if cs.TypeID == consts.MsgTypeIDAudioMsg ||
 			cs.TypeID == consts.MsgTypeIDVideoMsg {
+			log.Infof("getStreamChunkStream.get media data.cs:%v", util.JSON(cs))
 			break
 		}
 	}
