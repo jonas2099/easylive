@@ -1,6 +1,6 @@
 # easylive
 
-easy to create live app
+easy way to create live app
 
 ## Description
 
